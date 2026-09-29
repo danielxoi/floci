@@ -2756,6 +2756,30 @@ public interface EmulatorConfig {
         @WithDefault("300")
         int containerIdleTimeoutSeconds();
 
+        /**
+         * Maximum idle (warm) containers kept per function. A container released when the
+         * function already holds this many idle ones is stopped instead of pooled.
+         *
+         * <p>Unset derives {@code max(4, availableProcessors())}. Values below 1 are ignored
+         * with a warning.
+         *
+         * Env var: FLOCI_SERVICES_LAMBDA_WARM_POOL_MAX_PER_FUNCTION
+         */
+        Optional<Integer> warmPoolMaxPerFunction();
+
+        /**
+         * Maximum idle (warm) containers kept across all functions. When a release would push
+         * the total past this, the least-recently-used idle container of any function is
+         * stopped first, so the container that just ran (the most likely to run again) stays
+         * warm. {@code 0} disables the bound. Busy containers are not counted: the concurrent
+         * ceiling is {@code region-concurrency-limit}, so peak container count is bounded by
+         * the sum of the two.
+         *
+         * Env var: FLOCI_SERVICES_LAMBDA_WARM_POOL_MAX_TOTAL
+         */
+        @WithDefault("0")
+        int warmPoolMaxTotal();
+
         /** Docker network to attach Lambda containers to. Empty = default bridge. */
         Optional<String> dockerNetwork();
 
