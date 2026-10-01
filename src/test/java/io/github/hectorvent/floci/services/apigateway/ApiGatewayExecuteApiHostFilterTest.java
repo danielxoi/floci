@@ -248,6 +248,44 @@ class ApiGatewayExecuteApiHostFilterTest {
                 "abc123.execute-api.us-east-1.example.test", null));
     }
 
+    /**
+     * A region label is any published region, not a two-letter geo prefix: the EUSC partition's
+     * {@code eusc-de-east-1} was rejected before the suffix was even looked at, on every tail.
+     */
+    @Test
+    void extractsApiIdFromEuscRegionHosts() {
+        assertEquals("abc123", ApiGatewayExecuteApiHostFilter.extractApiId(
+                "abc123.execute-api.eusc-de-east-1.localhost.floci.io:4566", null));
+        assertEquals("abc123", ApiGatewayExecuteApiHostFilter.extractApiId(
+                "abc123.execute-api.eusc-de-east-1.localhost:4566", null));
+        assertEquals("abc123", ApiGatewayExecuteApiHostFilter.extractApiId(
+                "abc123.execute-api.eusc-de-east-1.amazonaws.eu", null));
+    }
+
+    @Test
+    void ignoresRegionShapedLabelThatIsNotAPublishedRegion() {
+        assertNull(ApiGatewayExecuteApiHostFilter.extractApiId(
+                "abc123.execute-api.zz-nowhere-9.localhost.floci.io", null));
+    }
+
+    @Test
+    void routesHttpApiOnEuscRegionBuiltInSuffixHost() {
+        FakeApiGatewayLookup lookup = new FakeApiGatewayLookup();
+        lookup.addApi("eusc-de-east-1", API_ID, "HTTP");
+        lookup.addStage("eusc-de-east-1", API_ID, "$default");
+        RecordingRequest request = new RecordingRequest(
+                "abc123.execute-api.eusc-de-east-1.localhost.floci.io:4566",
+                URI.create("http://abc123.execute-api.eusc-de-east-1.localhost.floci.io:4566/accounts"));
+        ApiGatewayExecuteRouteContext routeContext = new ApiGatewayExecuteRouteContext();
+
+        new ApiGatewayExecuteApiHostFilter(
+                lookup, new RegionResolver(REGION, "000000000000"), routeContext)
+                .filter(request.context());
+
+        assertEquals("/execute-api/abc123/$default/accounts", request.routedUri().getRawPath());
+        assertEquals("eusc-de-east-1", routeContext.httpApiRegion());
+    }
+
     @Test
     void routesRegionBearingConfiguredHost() {
         FakeApiGatewayLookup lookup = new FakeApiGatewayLookup();

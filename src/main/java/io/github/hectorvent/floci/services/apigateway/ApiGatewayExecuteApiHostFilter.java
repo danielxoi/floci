@@ -3,6 +3,7 @@ package io.github.hectorvent.floci.services.apigateway;
 import io.github.hectorvent.floci.config.EmulatorConfig;
 import io.github.hectorvent.floci.core.common.AwsException;
 import io.github.hectorvent.floci.core.common.AwsPartitions;
+import io.github.hectorvent.floci.core.common.AwsRegions;
 import io.github.hectorvent.floci.core.common.RegionResolver;
 import io.github.hectorvent.floci.core.common.RequestContext;
 import io.github.hectorvent.floci.core.common.RequestHost;
@@ -34,8 +35,6 @@ public class ApiGatewayExecuteApiHostFilter implements ContainerRequestFilter {
 
     private static final Logger LOG = Logger.getLogger(ApiGatewayExecuteApiHostFilter.class);
     private static final Pattern EXECUTE_API_PREFIX = Pattern.compile("^([a-z0-9-]+)\\.execute-api\\.(.+)$",
-            Pattern.CASE_INSENSITIVE);
-    private static final Pattern AWS_REGION = Pattern.compile("^[a-z]{2}-[a-z-]+-\\d+$",
             Pattern.CASE_INSENSITIVE);
 
     private final ApiGatewayLookup apiGatewayLookup;
@@ -262,7 +261,7 @@ public class ApiGatewayExecuteApiHostFilter implements ContainerRequestFilter {
         }
 
         int firstDot = tail.indexOf('.');
-        if (firstDot <= 0 || !AWS_REGION.matcher(tail.substring(0, firstDot)).matches()) {
+        if (firstDot <= 0 || !AwsRegions.isRegionId(tail.substring(0, firstDot))) {
             return null;
         }
 
