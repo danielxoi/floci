@@ -6,6 +6,7 @@ import io.github.hectorvent.floci.core.common.AwsPartitions;
 import io.github.hectorvent.floci.core.common.RegionResolver;
 import io.github.hectorvent.floci.core.common.RequestContext;
 import io.github.hectorvent.floci.core.common.RequestHost;
+import io.github.hectorvent.floci.core.common.dns.EmbeddedDnsServer;
 import io.github.hectorvent.floci.services.apigatewayv2.ApiGatewayV2Service;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -241,8 +242,9 @@ public class ApiGatewayExecuteApiHostFilter implements ContainerRequestFilter {
     /**
      * Extracts the {@code apiId} from an execute-api virtual host, or {@code null} when the host
      * is not an execute-api host. Region-bearing hosts accept the configured Floci hostname, the
-     * local {@code localhost} form, and AWS's {@code amazonaws.com} form. The public built-in
-     * suffixes remain regionless convenience forms.
+     * local {@code localhost} form, the public built-in suffixes, and AWS's
+     * {@code amazonaws.com} form. The built-in suffixes are also accepted regionless, as a
+     * convenience form.
      */
     public static String extractApiId(String host, String baseHostname) {
         if (host == null) {
@@ -255,8 +257,7 @@ public class ApiGatewayExecuteApiHostFilter implements ContainerRequestFilter {
         }
 
         String tail = matcher.group(2);
-        if ("localhost.floci.io".equalsIgnoreCase(tail)
-                || "localhost.localstack.cloud".equalsIgnoreCase(tail)) {
+        if (isBuiltInSuffix(tail)) {
             return matcher.group(1).toLowerCase(Locale.ROOT);
         }
 
@@ -267,11 +268,21 @@ public class ApiGatewayExecuteApiHostFilter implements ContainerRequestFilter {
 
         String endpointHost = tail.substring(firstDot + 1);
         if ("localhost".equalsIgnoreCase(endpointHost)
+                || isBuiltInSuffix(endpointHost)
                 || AwsPartitions.isDnsSuffix(endpointHost)
                 || (baseHostname != null && baseHostname.equalsIgnoreCase(endpointHost))) {
             return matcher.group(1).toLowerCase(Locale.ROOT);
         }
         return null;
+    }
+
+    private static boolean isBuiltInSuffix(String host) {
+        for (String suffix : EmbeddedDnsServer.BUILTIN_SUFFIXES) {
+            if (suffix.equalsIgnoreCase(host)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

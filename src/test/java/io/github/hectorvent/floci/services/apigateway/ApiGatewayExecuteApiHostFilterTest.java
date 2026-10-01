@@ -199,6 +199,55 @@ class ApiGatewayExecuteApiHostFilterTest {
         assertEquals("ap-northeast-2", routeContext.httpApiRegion());
     }
 
+    /**
+     * The regionless built-in suffix is a convenience form; the region-bearing one is what a
+     * client derives from a stage's invoke URL. Unclaimed, the request fell through to S3's path
+     * routes and answered NoSuchBucket for the stage segment.
+     */
+    @Test
+    void routesRegionBearingBuiltInSuffixHost() {
+        FakeApiGatewayLookup lookup = new FakeApiGatewayLookup();
+        lookup.addApi("ap-northeast-2", API_ID, "HTTP");
+        lookup.addStage("ap-northeast-2", API_ID, "$default");
+        RecordingRequest request = new RecordingRequest(
+                "abc123.execute-api.ap-northeast-2.localhost.floci.io:4566",
+                URI.create("http://abc123.execute-api.ap-northeast-2.localhost.floci.io:4566/accounts"));
+        ApiGatewayExecuteRouteContext routeContext = new ApiGatewayExecuteRouteContext();
+
+        new ApiGatewayExecuteApiHostFilter(
+                lookup, new RegionResolver(REGION, "000000000000"), routeContext)
+                .filter(request.context());
+
+        assertEquals("/execute-api/abc123/$default/accounts", request.routedUri().getRawPath());
+        assertEquals("ap-northeast-2", routeContext.httpApiRegion());
+    }
+
+    @Test
+    void routesRestApiOnRegionBearingBuiltInSuffixHost() {
+        FakeApiGatewayLookup lookup = new FakeApiGatewayLookup();
+        RecordingRequest request = new RecordingRequest(
+                "abc123.execute-api.us-east-1.localhost.floci.io:4566",
+                URI.create("http://abc123.execute-api.us-east-1.localhost.floci.io:4566/prod/users"));
+        ApiGatewayExecuteRouteContext routeContext = new ApiGatewayExecuteRouteContext();
+
+        new ApiGatewayExecuteApiHostFilter(
+                lookup, new RegionResolver(REGION, "000000000000"), routeContext)
+                .filter(request.context());
+
+        assertEquals("/execute-api/abc123/prod/users", request.routedUri().getRawPath());
+        assertNull(routeContext.httpApiRegion());
+    }
+
+    @Test
+    void extractsApiIdFromRegionBearingBuiltInSuffixHosts() {
+        assertEquals("abc123", ApiGatewayExecuteApiHostFilter.extractApiId(
+                "abc123.execute-api.us-east-1.localhost.floci.io:4566", null));
+        assertEquals("abc123", ApiGatewayExecuteApiHostFilter.extractApiId(
+                "abc123.execute-api.us-east-1.localhost.localstack.cloud", null));
+        assertNull(ApiGatewayExecuteApiHostFilter.extractApiId(
+                "abc123.execute-api.us-east-1.example.test", null));
+    }
+
     @Test
     void routesRegionBearingConfiguredHost() {
         FakeApiGatewayLookup lookup = new FakeApiGatewayLookup();
