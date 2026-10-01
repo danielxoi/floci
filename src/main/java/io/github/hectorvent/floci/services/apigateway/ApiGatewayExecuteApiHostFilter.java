@@ -3,7 +3,6 @@ package io.github.hectorvent.floci.services.apigateway;
 import io.github.hectorvent.floci.config.EmulatorConfig;
 import io.github.hectorvent.floci.core.common.AwsException;
 import io.github.hectorvent.floci.core.common.AwsPartitions;
-import io.github.hectorvent.floci.core.common.AwsRegions;
 import io.github.hectorvent.floci.core.common.RegionResolver;
 import io.github.hectorvent.floci.core.common.RequestContext;
 import io.github.hectorvent.floci.core.common.RequestHost;
@@ -261,7 +260,7 @@ public class ApiGatewayExecuteApiHostFilter implements ContainerRequestFilter {
         }
 
         int firstDot = tail.indexOf('.');
-        if (firstDot <= 0 || !AwsRegions.isRegionId(tail.substring(0, firstDot))) {
+        if (firstDot <= 0 || !RegionResolver.isKnownRegion(tail.substring(0, firstDot))) {
             return null;
         }
 

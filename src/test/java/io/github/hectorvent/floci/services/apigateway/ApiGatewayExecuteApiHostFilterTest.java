@@ -249,8 +249,9 @@ class ApiGatewayExecuteApiHostFilterTest {
     }
 
     /**
-     * A region label is any published region, not a two-letter geo prefix: the EUSC partition's
-     * {@code eusc-de-east-1} was rejected before the suffix was even looked at, on every tail.
+     * A region label is any region a partition recognizes, not a two-letter geo prefix: the EUSC
+     * partition's {@code eusc-de-east-1} was rejected before the suffix was even looked at, on
+     * every tail.
      */
     @Test
     void extractsApiIdFromEuscRegionHosts() {
@@ -262,8 +263,18 @@ class ApiGatewayExecuteApiHostFilterTest {
                 "abc123.execute-api.eusc-de-east-1.amazonaws.eu", null));
     }
 
+    /**
+     * A region launched after the vendored partition data was generated matches its partition's
+     * region regex without being in the published list; signed requests already accept it.
+     */
     @Test
-    void ignoresRegionShapedLabelThatIsNotAPublishedRegion() {
+    void extractsApiIdFromRegionNotYetInTheCatalog() {
+        assertEquals("abc123", ApiGatewayExecuteApiHostFilter.extractApiId(
+                "abc123.execute-api.eu-south-9.localhost.floci.io", null));
+    }
+
+    @Test
+    void ignoresRegionShapedLabelThatIsNotAKnownRegion() {
         assertNull(ApiGatewayExecuteApiHostFilter.extractApiId(
                 "abc123.execute-api.zz-nowhere-9.localhost.floci.io", null));
     }
