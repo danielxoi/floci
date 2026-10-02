@@ -442,10 +442,12 @@ These AWS Lambda operations have no handler in Floci. Calls will return `404` or
     FLOCI_SERVICES_LAMBDA_WARM_POOL_MAX_TOTAL=24
     ```
 
-    Busy containers do not count toward the total; their ceiling is
-    `region-concurrency-limit`. Peak container count is therefore bounded by the sum of the
-    two, and a cap that is smaller than the number of functions invoked in a tight loop trades
-    some warm hits for the memory bound.
+    This bounds idle containers only, emulator-wide. Busy containers do not count toward it;
+    their ceiling is `region-concurrency-limit`, which applies independently in each region, so
+    peak container count is `warm-pool-max-total` plus the in-flight invocations across every
+    active region. A cap that is smaller than the number of functions invoked in a tight loop
+    trades some warm hits for the memory bound. A negative value is ignored with a warning and
+    leaves the total unbounded, like `0`.
 
 ### Runtime API host override
 
