@@ -80,7 +80,7 @@ public class WarmPool implements ContainerTeardown {
         this.config = config;
         this.clock = clock;
         this.maxPoolSizePerFunction = resolveMaxPerFunction(config);
-        this.maxIdleTotal = Math.max(0, config.services().lambda().warmPoolMaxTotal());
+        this.maxIdleTotal = resolveMaxTotal(config);
     }
 
     /** Package-private constructor for testing (empty pool, no containers to drain). */
@@ -102,6 +102,16 @@ public class WarmPool implements ContainerTeardown {
             LOG.warnv("Ignoring floci.services.lambda.warm-pool-max-per-function {0}: must be "
                     + "at least 1; using {1}", max, DEFAULT_MAX_POOL_SIZE);
             return DEFAULT_MAX_POOL_SIZE;
+        }
+        return max;
+    }
+
+    static int resolveMaxTotal(EmulatorConfig config) {
+        int max = config.services().lambda().warmPoolMaxTotal();
+        if (max < 0) {
+            LOG.warnv("Ignoring floci.services.lambda.warm-pool-max-total {0}: must be 0 (unbounded) "
+                    + "or positive; leaving the total unbounded", max);
+            return 0;
         }
         return max;
     }

@@ -624,13 +624,29 @@ class WarmPoolTest {
         assertEquals(derived, WarmPool.resolveMaxPerFunction(buildConfig(Optional.empty())));
     }
 
+    /**
+     * {@code 0} is the documented opt-out, so a negative value must not quietly become it:
+     * the fallback is still unbounded, but it is logged rather than mistaken for a cap.
+     */
+    @Test
+    void resolveMaxTotal_treatsNegativeAsUnboundedWithWarning() {
+        assertEquals(24, WarmPool.resolveMaxTotal(buildConfig(Optional.empty(), 24)));
+        assertEquals(0, WarmPool.resolveMaxTotal(buildConfig(Optional.empty(), 0)));
+        assertEquals(0, WarmPool.resolveMaxTotal(buildConfig(Optional.empty(), -1)));
+    }
+
     private static EmulatorConfig buildConfig(Optional<Integer> maxPerFunction) {
+        return buildConfig(maxPerFunction, 0);
+    }
+
+    private static EmulatorConfig buildConfig(Optional<Integer> maxPerFunction, int maxTotal) {
         EmulatorConfig emulatorConfig = mock(EmulatorConfig.class);
         EmulatorConfig.ServicesConfig services = mock(EmulatorConfig.ServicesConfig.class);
         EmulatorConfig.LambdaServiceConfig lambda = mock(EmulatorConfig.LambdaServiceConfig.class);
         when(emulatorConfig.services()).thenReturn(services);
         when(services.lambda()).thenReturn(lambda);
-        when(lambda.warmPoolMaxPerFunction()).thenReturn(maxPerFunction);
+        lenient().when(lambda.warmPoolMaxPerFunction()).thenReturn(maxPerFunction);
+        lenient().when(lambda.warmPoolMaxTotal()).thenReturn(maxTotal);
         return emulatorConfig;
     }
 }
