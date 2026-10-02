@@ -504,6 +504,54 @@ class WarmPoolTest {
         }
     }
 
+    /**
+     * A drain detaches the deque from its pool and stops the contents itself. An eviction that
+     * snapshotted the same deque before the drain must not remove from the orphaned object and
+     * stop the container a second time. The LRU sort reads {@code getLastUsedMs()} between the
+     * snapshot and the removal, which is the only hook into that window without a sleep.
+     */
+    @Test
+    void totalCap_doesNotStopContainerAlreadyClaimedByDrain() {
+        WarmPool pool = buildPool(Optional.empty(), 2);
+        pool.init();
+
+        LambdaFunction fnA = function("fn-a");
+        LambdaFunction fnB = function("fn-b");
+        LambdaFunction fnC = function("fn-c");
+        CountDownLatch drainOnce = new CountDownLatch(1);
+        ContainerHandle a1 = new ContainerHandle("cid-a1", "fn-a", null, ContainerState.WARM) {
+            @Override
+            public long getLastUsedMs() {
+                if (drainOnce.getCount() > 0) {
+                    drainOnce.countDown();
+                    pool.drainFunction("fn-a");
+                }
+                return super.getLastUsedMs();
+            }
+        };
+        ContainerHandle b1 = new ContainerHandle("cid-b1", "fn-b", null, ContainerState.WARM);
+        ContainerHandle c1 = new ContainerHandle("cid-c1", "fn-c", null, ContainerState.WARM);
+        when(containerLauncher.launch(any())).thenReturn(a1, b1, c1);
+
+        ContainerHandle leasedA1 = pool.acquire(fnA);
+        ContainerHandle leasedB1 = pool.acquire(fnB);
+        ContainerHandle leasedC1 = pool.acquire(fnC);
+        pool.release(leasedA1);
+        nextMillisecond();
+        pool.release(leasedB1);
+        nextMillisecond();
+        // Two idle entries are snapshotted, so the LRU sort compares them and the hook drains
+        // fn-a before the removal step. a1 is the LRU; it must be stopped by the drain only.
+        pool.release(leasedC1);
+
+        assertEquals(0, drainOnce.getCount());
+        verify(containerLauncher, times(1)).stop(a1);
+        verify(containerLauncher, never()).stop(b1);
+        verify(containerLauncher, never()).stop(c1);
+
+        pool.shutdown();
+    }
+
     @Test
     void totalCap_evictsLeastRecentlyUsedAcrossFunctions() {
         WarmPool pool = buildPool(Optional.empty(), 2);

@@ -71,7 +71,8 @@ public class WarmPool implements ContainerTeardown {
     private record Lease(PoolState poolState, long epoch, String environmentKey) {
     }
 
-    private record IdleEntry(PoolState poolState, ArrayDeque<ContainerHandle> idle, ContainerHandle handle) {
+    private record IdleEntry(PoolState poolState, String environmentKey,
+                             ArrayDeque<ContainerHandle> idle, ContainerHandle handle) {
     }
 
     @Inject
@@ -288,15 +289,17 @@ public class WarmPool implements ContainerTeardown {
      * most {@code keep} remain, and returns the removed handles for the caller to stop outside
      * the locks. Must be called under {@link #capLock}. The snapshot and the removal take each
      * pool's lock separately, so a handle that {@link #acquire} pops in between is simply no
-     * longer in its deque and is left to its new lease.
+     * longer in its deque and is left to its new lease. A drain in that window detaches the
+     * whole deque from its pool and stops its contents itself; the removal checks the deque is
+     * still the live one for its environment, so a drained handle is not stopped twice.
      */
     private List<ContainerHandle> evictIdleBeyond(int keep) {
         List<IdleEntry> entries = new ArrayList<>();
         for (PoolState poolState : poolStates.values()) {
             synchronized (poolState) {
-                for (ArrayDeque<ContainerHandle> idle : poolState.idleByEnvironment.values()) {
-                    for (ContainerHandle handle : idle) {
-                        entries.add(new IdleEntry(poolState, idle, handle));
+                for (Map.Entry<String, ArrayDeque<ContainerHandle>> idle : poolState.idleByEnvironment.entrySet()) {
+                    for (ContainerHandle handle : idle.getValue()) {
+                        entries.add(new IdleEntry(poolState, idle.getKey(), idle.getValue(), handle));
                     }
                 }
             }
@@ -309,7 +312,8 @@ public class WarmPool implements ContainerTeardown {
         List<ContainerHandle> evicted = new ArrayList<>(excess);
         for (IdleEntry entry : entries.subList(0, excess)) {
             synchronized (entry.poolState()) {
-                if (entry.idle().remove(entry.handle())) {
+                ArrayDeque<ContainerHandle> live = entry.poolState().idleByEnvironment.get(entry.environmentKey());
+                if (live == entry.idle() && live.remove(entry.handle())) {
                     evicted.add(entry.handle());
                 }
             }
