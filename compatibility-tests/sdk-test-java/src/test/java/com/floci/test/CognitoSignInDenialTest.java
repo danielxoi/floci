@@ -31,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * a disabled user is {@code NotAuthorizedException} ("User is disabled."), and a PreAuthentication
  * trigger that raises is {@code UserLambdaValidationException} carrying the function's message.
  */
-@DisplayName("Cognito IDP — sign-in denial exception classes")
+@DisplayName("Cognito IDP: sign-in denial exception classes")
 class CognitoSignInDenialTest {
 
     private static final String ROLE = "arn:aws:iam::000000000000:role/lambda-role";
