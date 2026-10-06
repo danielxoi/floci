@@ -251,7 +251,7 @@ class CognitoLambdaTriggersTest {
         AwsException ex = assertThrows(AwsException.class, () ->
                 service.initiateAuth(client.getClientId(), "USER_PASSWORD_AUTH",
                         Map.of("USERNAME", "alice", "PASSWORD", "Perm1234!")));
-        assertEquals("NotAuthorizedException", ex.getErrorCode());
+        assertEquals("UserLambdaValidationException", ex.getErrorCode());
         assertEquals("PreAuthentication failed with error Unhandled.", ex.getMessage());
     }
 
@@ -275,7 +275,7 @@ class CognitoLambdaTriggersTest {
             }
         });
 
-        assertEquals("NotAuthorizedException", ex.getErrorCode());
+        assertEquals("UserLambdaValidationException", ex.getErrorCode());
         assertEquals("PreAuthentication failed with error Email not verified.", ex.getMessage());
     }
 
@@ -298,7 +298,7 @@ class CognitoLambdaTriggersTest {
                 service.initiateAuth(client.getClientId(), "USER_PASSWORD_AUTH",
                         Map.of("USERNAME", "alice", "PASSWORD", "Perm1234!")));
 
-        assertEquals("NotAuthorizedException", ex.getErrorCode());
+        assertEquals("UserLambdaValidationException", ex.getErrorCode());
         assertEquals("PreAuthentication failed with error Unhandled.", ex.getMessage());
     }
 
@@ -421,12 +421,13 @@ class CognitoLambdaTriggersTest {
 
         when(lambdaService.invoke(anyString(), eq("arn:aws:lambda:::pre-signup"),
                 any(byte[].class), any()))
-                .thenReturn(lambdaError("Unhandled"));
+                .thenReturn(lambdaError("Unhandled", "Invitations are closed"));
 
         AwsException ex = assertThrows(AwsException.class, () ->
                 service.signUp(client.getClientId(), "alice", "Perm1234!",
                         Map.of("email", "alice@example.com")));
-        assertEquals("NotAuthorizedException", ex.getErrorCode());
+        assertEquals("UserLambdaValidationException", ex.getErrorCode());
+        assertEquals("PreSignUp failed with error Invitations are closed.", ex.getMessage());
     }
 
     @Test
